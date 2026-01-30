@@ -200,23 +200,29 @@
     }
     function handleScan(code) {
         const now = Date.now();
-        if (scannedData.length > 0 && scannedData[scannedData.length-1].code === code) {
-            const lastTime = new Date(scannedData[scannedData.length-1].timestamp).getTime();
-            if (now - lastTime < 1500) return; 
+        
+        if (scannedData.length > 0) {
+            const lastScan = scannedData[scannedData.length - 1];
+            const timeDiff = now - new Date(lastScan.timestamp).getTime();
+
+            if (timeDiff < 1500) {
+                return; 
+            }
         }
+
         if (navigator.vibrate) navigator.vibrate(100); 
+        
         document.getElementById('body').classList.add('flash');
         setTimeout(() => document.body.classList.remove('flash'), 300);
+
         scannedData.push({ 
             code: code, 
             module: moduleInput.value, 
             timestamp: new Date().toISOString() 
         });
+
         updateCount();
         lastText.innerText = "Last: " + code;
-    }
-    function updateCount() {
-        countDisp.innerText = scannedData.length;
     }
     document.getElementById('undoBtn').addEventListener('click', () => {
         if (scannedData.length > 0) {
