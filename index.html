@@ -34,7 +34,8 @@
         }
 
         #reader {
-            width: 320px;
+            width: 100%;
+            max-width: 320px;
             height: 160px;
             background: #000;
             border: 3px solid var(--primary);
@@ -77,6 +78,7 @@
             border: 2px solid #ddd;
             border-radius: 8px;
             box-sizing: border-box;
+            font-size: 16px;
         }
 
         button {
@@ -90,24 +92,10 @@
             color: white;
         }
 
-        .btn-start {
-            background: var(--primary);
-        }
-
-        .btn-stop {
-            background: var(--danger);
-        }
-
-        .btn-manual {
-            background: var(--success);
-        }
-
-        .btn-undo {
-            background: #6c757d;
-            font-size: 0.8rem;
-            padding: 8px;
-            width: auto;
-        }
+        .btn-start { background: var(--primary); }
+        .btn-stop { background: var(--danger); }
+        .btn-manual { background: var(--success); }
+        .btn-undo { background: #6c757d; font-size: 0.8rem; padding: 8px; width: auto; }
 
         .last-scan {
             font-size: 0.8rem;
@@ -117,15 +105,12 @@
             min-height: 1.2rem;
         }
 
-        .flash {
-            animation: flash-green 0.3s;
-        }
-
+        .flash { animation: flash-green 0.3s; }
         @keyframes flash-green {
             from { background: #c3e6cb; }
             to { background: var(--bg); }
         }
-        </style>
+    </style>
 </head>
 <body id="body">
 
@@ -164,6 +149,7 @@
             stop();
         }
     });
+
     async function start() {
         scannedData = [];
         updateCount();
@@ -198,16 +184,14 @@
             html5QrCode.start({ facingMode: "environment" }, config, (code) => handleScan(code));
         });
     }
+
     function handleScan(code) {
         const now = Date.now();
         
         if (scannedData.length > 0) {
             const lastScan = scannedData[scannedData.length - 1];
             const timeDiff = now - new Date(lastScan.timestamp).getTime();
-
-            if (timeDiff < 1500) {
-                return; 
-            }
+            if (timeDiff < 1500) return; 
         }
 
         if (navigator.vibrate) navigator.vibrate(100); 
@@ -224,6 +208,11 @@
         updateCount();
         lastText.innerText = "Last: " + code;
     }
+
+    function updateCount() {
+        countDisp.innerText = scannedData.length;
+    }
+
     document.getElementById('undoBtn').addEventListener('click', () => {
         if (scannedData.length > 0) {
             const removed = scannedData.pop();
@@ -231,27 +220,36 @@
             lastText.innerText = "Removed: " + removed.code;
         }
     });
+
     async function stop() {
-        await html5QrCode.stop();
+        if (html5QrCode.isScanning) {
+            await html5QrCode.stop();
+        }
         downloadCSV();
         scannerUi.style.display = 'none';
         moduleInput.disabled = false;
         sessionBtn.innerText = "START SESSION";
         sessionBtn.className = "btn-start";
     }
+
     function downloadCSV() {
-        let csv = "Barcode,Module\n";
-        scannedData.forEach(row => csv += `${row.code},${row.module}\n`);
+        if (scannedData.length === 0) return;
+        let csv = "Barcode,Module,Timestamp\n";
+        scannedData.forEach(row => csv += `${row.code},${row.module},${row.timestamp}\n`);
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Session_${moduleInput.value}.csv`;
+        a.download = `Session_${moduleInput.value.trim()}_${Date.now()}.csv`;
         a.click();
     }
+
     document.getElementById('addManualBtn').addEventListener('click', () => {
         const inp = document.getElementById('manualInput');
-        if (inp.value) { handleScan(inp.value); inp.value = ""; }
+        if (inp.value) { 
+            handleScan(inp.value); 
+            inp.value = ""; 
+        }
     });
 </script>
 </body>
