@@ -6,22 +6,125 @@
     <title>Hybrid Scan Tool</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --bg: #f4f7f6; }
-        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
-        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 20px; width: 100%; max-width: 400px; box-sizing: border-box; }
-        #reader { width: 100%; border-radius: 8px; overflow: hidden; background: #000; border: 2px solid #333; margin-top: 10px; }
-        #reader video { object-fit: cover !important; }
-        .stats-bar { display: flex; justify-content: space-between; align-items: center; margin: 15px 0; font-weight: bold; }
-        input { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        button { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px; color: white; }
-        .btn-start { background: var(--primary); }
-        .btn-stop { background: var(--danger); }
-        .btn-manual { background: var(--success); }
-        .btn-undo { background: #6c757d; font-size: 0.8rem; padding: 8px; width: auto; }
-        .last-scan { font-size: 0.8rem; color: #555; text-align: center; margin-bottom: 5px; min-height: 1.2rem; }
-        .flash { animation: flash-green 0.3s; }
-        @keyframes flash-green { from { background: #c3e6cb; } to { background: var(--bg); } }
-    </style>
+        :root {
+            --primary: #007bff;
+            --success: #28a745;
+            --danger: #dc3545;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: sans-serif;
+            background: var(--bg);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 20px;
+            width: 100%;
+            max-width: 400px;
+            box-sizing: border-box;
+        }
+
+        #reader {
+            width: 320px;
+            height: 120px;
+            background: #000;
+            border: 3px solid var(--primary);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+            margin: 0 auto;
+        }
+
+        #reader video {
+            object-fit: cover !important;
+        }
+
+        #reader::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 5%;
+            width: 90%;
+            height: 2px;
+            background: rgba(255, 0, 0, 0.7);
+            box-shadow: 0 0 8px red;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 5px;
+            color: white;
+        }
+
+        .btn-start {
+            background: var(--primary);
+        }
+
+        .btn-stop {
+            background: var(--danger);
+        }
+
+        .btn-manual {
+            background: var(--success);
+        }
+
+        .btn-undo {
+            background: #6c757d;
+            font-size: 0.8rem;
+            padding: 8px;
+            width: auto;
+        }
+
+        .last-scan {
+            font-size: 0.8rem;
+            color: #555;
+            text-align: center;
+            margin-bottom: 5px;
+            min-height: 1.2rem;
+        }
+
+        .flash {
+            animation: flash-green 0.3s;
+        }
+
+        @keyframes flash-green {
+            from { background: #c3e6cb; }
+            to { background: var(--bg); }
+        }
+        </style>
 </head>
 <body id="body">
 
@@ -60,7 +163,6 @@
             stop();
         }
     });
-
     async function start() {
         scannedData = [];
         updateCount();
@@ -68,26 +170,31 @@
         scannerUi.style.display = 'block';
         sessionBtn.innerText = "END & DOWNLOAD CSV";
         sessionBtn.className = "btn-stop";
+
         const config = { 
-            fps: 2, 
-            qrbox: { width: 250, height: 150 },
+            fps: 10, 
+            qrbox: { width: 300, height: 80 }, 
             aspectRatio: 1.0,
             formatsToSupport: [ Html5QrcodeSupportedFormats.EAN_13 ],
             experimentalFeatures: {
                 useBarCodeDetectorIfSupported: true
+            },
+            videoConstraints: {
+                facingMode: "environment",
+                zoom: 2.0 
             }
         };
+
         await html5QrCode.start(
             { facingMode: "environment" },
             config,
             (code) => handleScan(code)
         ).catch(err => {
-            console.error(err);
-            alert("Camera Error: Check HTTPS/Localhost permissions.");
-            stop();
+            delete config.videoConstraints.zoom;
+            html5QrCode.start({ facingMode: "environment" }, config, (code) => handleScan(code));
         });
     }
-    function handleScan(code, decodedResult) {
+    function handleScan(code) {
         const now = Date.now();
         if (scannedData.length > 0 && scannedData[scannedData.length-1].code === code) {
             const lastTime = new Date(scannedData[scannedData.length-1].timestamp).getTime();
@@ -103,9 +210,6 @@
         });
         updateCount();
         lastText.innerText = "Last: " + code;
-        if(decodedResult) {
-            console.log("Format:", decodedResult.result.format.formatName);
-        }
     }
     function updateCount() {
         countDisp.innerText = scannedData.length;
