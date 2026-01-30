@@ -35,7 +35,7 @@
 
         #reader {
             width: 320px;
-            height: 120px;
+            height: 160px;
             background: #000;
             border: 3px solid var(--primary);
             border-radius: 4px;
@@ -46,6 +46,7 @@
 
         #reader video {
             object-fit: cover !important;
+            object-position: center;
         }
 
         #reader::after {
@@ -172,8 +173,10 @@
         sessionBtn.className = "btn-stop";
 
         const config = { 
-            fps: 10, 
-            qrbox: { width: 300, height: 80 }, 
+            fps: 15, 
+            qrbox: (viewWidth, viewHeight) => {
+                return { width: viewWidth * 0.9, height: 90 };
+            },
             aspectRatio: 1.0,
             formatsToSupport: [ Html5QrcodeSupportedFormats.EAN_13 ],
             experimentalFeatures: {
@@ -181,7 +184,8 @@
             },
             videoConstraints: {
                 facingMode: "environment",
-                zoom: 2.0 
+                focusMode: "continuous",
+                zoom: { ideal: 2.0 }
             }
         };
 
