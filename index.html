@@ -68,34 +68,48 @@
         scannerUi.style.display = 'block';
         sessionBtn.innerText = "END & DOWNLOAD CSV";
         sessionBtn.className = "btn-stop";
-
+        const config = { 
+            fps: 2, 
+            qrbox: { width: 250, height: 150 },
+            aspectRatio: 1.0,
+            formatsToSupport: [ Html5QrcodeSupportedFormats.EAN_13 ],
+            experimentalFeatures: {
+                useBarCodeDetectorIfSupported: true
+            }
+        };
         await html5QrCode.start(
             { facingMode: "environment" },
-            { fps: 2, qrbox: { width: 250, height: 150 } },
+            config,
             (code) => handleScan(code)
-        ).catch(err => alert("Camera Error: Check HTTPS/Localhost"));
+        ).catch(err => {
+            console.error(err);
+            alert("Camera Error: Check HTTPS/Localhost permissions.");
+            stop();
+        });
     }
-
-    function handleScan(code) {
-        // Prevent accidental double-scans within 1 second
+    function handleScan(code, decodedResult) {
         const now = Date.now();
         if (scannedData.length > 0 && scannedData[scannedData.length-1].code === code) {
-             const lastTime = new Date(scannedData[scannedData.length-1].timestamp).getTime();
-             if (now - lastTime < 1000) return; 
+            const lastTime = new Date(scannedData[scannedData.length-1].timestamp).getTime();
+            if (now - lastTime < 1500) return; 
         }
-
-        scannedData.push({ code, module: moduleInput.value, timestamp: new Date().toISOString() });
+        if (navigator.vibrate) navigator.vibrate(100); 
+        document.getElementById('body').classList.add('flash');
+        setTimeout(() => document.body.classList.remove('flash'), 300);
+        scannedData.push({ 
+            code: code, 
+            module: moduleInput.value, 
+            timestamp: new Date().toISOString() 
+        });
         updateCount();
         lastText.innerText = "Last: " + code;
-        document.getElementById('body').classList.add('flash');
-        setTimeout(() => document.getElementById('body').classList.remove('flash'), 300);
+        if(decodedResult) {
+            console.log("Format:", decodedResult.result.format.formatName);
+        }
     }
-
     function updateCount() {
         countDisp.innerText = scannedData.length;
     }
-
-    // --- UNDO FEATURE ---
     document.getElementById('undoBtn').addEventListener('click', () => {
         if (scannedData.length > 0) {
             const removed = scannedData.pop();
@@ -103,18 +117,14 @@
             lastText.innerText = "Removed: " + removed.code;
         }
     });
-
     async function stop() {
         await html5QrCode.stop();
         downloadCSV();
-        // Optional: syncToGoogleSheets(scannedData);
-        
         scannerUi.style.display = 'none';
         moduleInput.disabled = false;
         sessionBtn.innerText = "START SESSION";
         sessionBtn.className = "btn-start";
     }
-
     function downloadCSV() {
         let csv = "Barcode,Module\n";
         scannedData.forEach(row => csv += `${row.code},${row.module}\n`);
@@ -125,7 +135,6 @@
         a.download = `Session_${moduleInput.value}.csv`;
         a.click();
     }
-
     document.getElementById('addManualBtn').addEventListener('click', () => {
         const inp = document.getElementById('manualInput');
         if (inp.value) { handleScan(inp.value); inp.value = ""; }
