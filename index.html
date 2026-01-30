@@ -134,15 +134,13 @@
 
 <script>
     let scannedData = [];
-    let html5QrCode = new Html5Qrcode("reader");
-    const sessionBtn = document.getElementById('sessionBtn');
     const moduleInput = document.getElementById('moduleInput');
     const scannerUi = document.getElementById('scannerUi');
     const countDisp = document.getElementById('count');
     const lastText = document.getElementById('lastText');
 
-    sessionBtn.addEventListener('click', () => {
-        if (!html5QrCode.isScanning) {
+    document.getElementById('sessionBtn').addEventListener('click', () => {
+        if (document.getElementById('sessionBtn').innerText === "START SESSION") {
             if (!moduleInput.value.trim()) return alert("Enter Module #");
             start();
         } else {
@@ -150,52 +148,46 @@
         }
     });
 
-    async function start() {
+    function start() {
         scannedData = [];
         updateCount();
         moduleInput.disabled = true;
         scannerUi.style.display = 'block';
-        sessionBtn.innerText = "END & DOWNLOAD CSV";
-        sessionBtn.className = "btn-stop";
+        document.getElementById('sessionBtn').innerText = "END & DOWNLOAD CSV";
+        document.getElementById('sessionBtn').className = "btn-stop";
 
-        const config = { 
-            fps: 15, 
-            qrbox: (viewWidth, viewHeight) => {
-                return { width: viewWidth * 0.9, height: 90 };
+        Quagga.init({
+            inputStream: {
+                name: "Live",
+                type: "LiveStream",
+                target: document.querySelector('#reader'),
+                constraints: {
+                    facingMode: "environment",
+                    aspectRatio: { min: 1, max: 2 }
+                },
             },
-            aspectRatio: 1.0,
-            formatsToSupport: [ Html5QrcodeSupportedFormats.EAN_13 ],
-            experimentalFeatures: {
-                useBarCodeDetectorIfSupported: true
+            decoder: {
+                readers: ["ean_reader"]
             },
-            videoConstraints: {
-                facingMode: "environment",
-                focusMode: "continuous",
-                zoom: { ideal: 2.0 }
-            }
-        };
-
-        await html5QrCode.start(
-            { facingMode: "environment" },
-            config,
-            (code) => handleScan(code)
-        ).catch(err => {
-            delete config.videoConstraints.zoom;
-            html5QrCode.start({ facingMode: "environment" }, config, (code) => handleScan(code));
+            locate: true, // Finds the barcode location in the frame
+            frequency: 10
+        }, function(err) {
+            if (err) { alert(err); return; }
+            Quagga.start();
         });
+
+        Quagga.onDetected(data => handleScan(data.codeResult.code));
     }
 
     function handleScan(code) {
         const now = Date.now();
-        
         if (scannedData.length > 0) {
             const lastScan = scannedData[scannedData.length - 1];
             const timeDiff = now - new Date(lastScan.timestamp).getTime();
-            if (timeDiff < 1500) return; 
+            if (timeDiff < 1500) return;
         }
 
-        if (navigator.vibrate) navigator.vibrate(100); 
-        
+        if (navigator.vibrate) navigator.vibrate(100);
         document.getElementById('body').classList.add('flash');
         setTimeout(() => document.body.classList.remove('flash'), 300);
 
@@ -213,23 +205,13 @@
         countDisp.innerText = scannedData.length;
     }
 
-    document.getElementById('undoBtn').addEventListener('click', () => {
-        if (scannedData.length > 0) {
-            const removed = scannedData.pop();
-            updateCount();
-            lastText.innerText = "Removed: " + removed.code;
-        }
-    });
-
-    async function stop() {
-        if (html5QrCode.isScanning) {
-            await html5QrCode.stop();
-        }
+    function stop() {
+        Quagga.stop();
         downloadCSV();
         scannerUi.style.display = 'none';
         moduleInput.disabled = false;
-        sessionBtn.innerText = "START SESSION";
-        sessionBtn.className = "btn-start";
+        document.getElementById('sessionBtn').innerText = "START SESSION";
+        document.getElementById('sessionBtn').className = "btn-start";
     }
 
     function downloadCSV() {
@@ -240,16 +222,21 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Session_${moduleInput.value.trim()}_${Date.now()}.csv`;
+        a.download = `Session_${moduleInput.value.trim()}.csv`;
         a.click();
     }
 
+    document.getElementById('undoBtn').addEventListener('click', () => {
+        if (scannedData.length > 0) {
+            const removed = scannedData.pop();
+            updateCount();
+            lastText.innerText = "Removed: " + removed.code;
+        }
+    });
+
     document.getElementById('addManualBtn').addEventListener('click', () => {
         const inp = document.getElementById('manualInput');
-        if (inp.value) { 
-            handleScan(inp.value); 
-            inp.value = ""; 
-        }
+        if (inp.value) { handleScan(inp.value); inp.value = ""; }
     });
 </script>
 </body>
