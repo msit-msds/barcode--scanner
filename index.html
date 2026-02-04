@@ -3,39 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sub-Scan v1.1.3</title>
+    <title>Sub-Scan v1.1.4</title>
     <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
     <style>
         :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --bg: #f4f7f6; }
         body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
         .card { background: white; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); padding: 20px; width: 100%; max-width: 400px; box-sizing: border-box; }
         
-        /* Camera Viewport */
         #reader { 
             width: 100%; height: 160px; background: #000; border: 3px solid var(--primary); 
             border-radius: 8px; overflow: hidden; margin: 10px 0; position: relative; 
         }
         #reader video, canvas.drawingBuffer { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
-        
-        /* Laser Line Overlay */
-        #reader::after {
-            content: ""; position: absolute; top: 50%; left: 5%; width: 90%; height: 2px;
-            background: rgba(255, 0, 0, 0.8); box-shadow: 0 0 10px red; z-index: 10;
-        }
+        #reader::after { content: ""; position: absolute; top: 50%; left: 5%; width: 90%; height: 2px; background: rgba(255, 0, 0, 0.8); box-shadow: 0 0 10px red; z-index: 10; }
 
         .zoom-ctrl { position: absolute; bottom: 8px; right: 8px; z-index: 20; }
         .zoom-btn { background: rgba(0,0,0,0.7); color: white; border: 1px solid #fff; border-radius: 50%; width: 44px; height: 44px; font-weight: bold; cursor: pointer; }
 
         .stats-bar { display: flex; justify-content: space-between; align-items: center; margin: 10px 0; font-weight: bold; }
         input { width: 100%; padding: 12px; margin: 5px 0; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px; color: white; transition: 0.2s; }
-        button:active { transform: scale(0.98); opacity: 0.9; }
+        button { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px; color: white; }
         
         .btn-start { background: var(--primary); }
         .btn-stop { background: var(--danger); }
         .btn-manual { background: var(--success); }
         .btn-undo { background: #6c757d; font-size: 0.8rem; padding: 8px 12px; width: auto; }
         
+        #lastText { text-align:center; color:var(--primary); font-size: 1.4rem; font-weight:bold; margin-bottom:10px; min-height: 1.8rem; }
         .history { margin-top: 15px; font-size: 0.85rem; color: #444; border-top: 1px solid #eee; padding-top: 10px; width: 100%; }
         .version-tag { font-size: 0.6rem; color: #bbb; margin-top: 20px; }
         .flash { animation: flash-green 0.3s; }
@@ -45,11 +39,11 @@
 <body id="body">
 
 <div class="card">
-    <h2 style="margin:0 0 15px 0; text-align:center; color:#333;">Session v1.1.3</h2>
+    <h2 style="margin:0 0 15px 0; text-align:center; color:#333;">Session v1.1.4</h2>
     
     <div id="setupFields">
-        <input type="text" id="nameInput" placeholder="Operator Name (e.g. John)">
-        <input type="text" id="moduleInput" placeholder="Bin / Module # (e.g. B10)">
+        <input type="text" id="nameInput" placeholder="Operator Name">
+        <input type="text" id="moduleInput" placeholder="Bin / Module #">
     </div>
 
     <button id="sessionBtn" class="btn-start">START SESSION</button>
@@ -61,12 +55,12 @@
             </div>
         </div>
         
-        <div class="stats-bar">
-            <span>Count: <span id="count">0</span></span>
-            <button id="undoBtn" class="btn-undo">UNDO LAST</button>
-        </div>
+        <div id="lastText">Ready</div>
 
-        <div id="lastText" style="text-align:center; color:var(--primary); font-weight:bold; margin-bottom:10px;">Ready to Scan</div>
+        <div class="stats-bar">
+            <span>Qty: <span id="count">0</span></span>
+            <button id="undoBtn" class="btn-undo">UNDO</button>
+        </div>
         
         <div style="display:flex; gap:5px;">
             <input type="text" id="manualInput" placeholder="Manual Input">
@@ -75,18 +69,17 @@
 
         <div class="history" id="historyLog">
             <strong>Recent Scans:</strong>
-            <div id="logItems" style="color: #888;">No scans yet.</div>
+            <div id="logItems" style="color: #888; margin-top: 5px;">None</div>
         </div>
     </div>
 </div>
 
-<div class="version-tag">Build: v1.1.3 | Substring: Last 6 | All Codes Accepted</div>
+<div class="version-tag">Build: v1.1.4 | Logic: Last 6 | UI: Clean Numbers</div>
 
 <script>
     let scannedData = [];
     let currentZoom = 2.5;
 
-    // Elements
     const sessionBtn = document.getElementById('sessionBtn');
     const nameInput = document.getElementById('nameInput');
     const moduleInput = document.getElementById('moduleInput');
@@ -98,9 +91,7 @@
 
     sessionBtn.addEventListener('click', () => {
         if (sessionBtn.innerText === "START SESSION") {
-            if (!nameInput.value.trim() || !moduleInput.value.trim()) {
-                return alert("Please enter Operator Name and Bin/Module #");
-            }
+            if (!nameInput.value.trim() || !moduleInput.value.trim()) return alert("Enter Info");
             start();
         } else {
             stop();
@@ -130,7 +121,7 @@
         nameInput.disabled = true;
         moduleInput.disabled = true;
         scannerUi.style.display = 'block';
-        sessionBtn.innerText = "FINISH & DOWNLOAD CSV";
+        sessionBtn.innerText = "FINISH & DOWNLOAD";
         sessionBtn.className = "btn-stop";
 
         Quagga.init({
@@ -144,14 +135,10 @@
             halfSample: true,
             patchSize: "medium",
             frequency: 15,
-            decoder: { 
-                // Supports most common 1D formats
-                readers: ["ean_reader", "code_128_reader", "upc_reader", "code_39_reader"] 
-            }
-        }, function(err) {
-            if (err) { alert("Camera Error: " + err); return; }
+            decoder: { readers: ["ean_reader", "code_128_reader", "upc_reader"] }
+        }, (err) => {
+            if (err) return alert("Error: " + err);
             Quagga.start();
-            // Wait for track to be active before zooming
             setTimeout(() => applyZoom(2.5), 1000);
         });
 
@@ -159,41 +146,37 @@
     }
 
     function handleScan(rawCode) {
-        // Time Debounce: Prevent double-scans within 1.2 seconds
         const now = Date.now();
         if (scannedData.length > 0) {
             const last = scannedData[scannedData.length - 1];
             if (now - new Date(last.timestamp).getTime() < 1200) return;
         }
 
-        // Substring Method: Only save last 6 characters
         const savedCode = rawCode.slice(-6);
 
-        // Feedback
         if (navigator.vibrate) navigator.vibrate(80);
-        document.getElementById('body').classList.add('flash');
+        document.body.classList.add('flash');
         setTimeout(() => document.body.classList.remove('flash'), 200);
 
         scannedData.push({ 
             code: savedCode, 
-            original: rawCode,
             module: moduleInput.value.trim(), 
             timestamp: new Date().toISOString() 
         });
 
-        updateUi();
-        lastText.innerText = "Captured: ..." + savedCode;
+        updateUi(savedCode);
     }
 
-    function updateUi() {
+    function updateUi(newCode = null) {
         countDisp.innerText = scannedData.length;
+        if (newCode) lastText.innerText = newCode;
         
-        // Update History Log (Last 3)
         if (scannedData.length > 0) {
             const history = scannedData.slice(-3).reverse();
-            logItems.innerHTML = history.map(item => `<div>• ...${item.code}</div>`).join('');
+            logItems.innerHTML = history.map(item => `<div>• ${item.code}</div>`).join('');
         } else {
-            logItems.innerHTML = "No scans yet.";
+            logItems.innerHTML = "None";
+            lastText.innerText = "Ready";
         }
     }
 
@@ -205,13 +188,10 @@
         moduleInput.disabled = false;
         sessionBtn.innerText = "START SESSION";
         sessionBtn.className = "btn-start";
-        lastText.innerText = "Ready to Scan";
     }
 
     function downloadCSV() {
         if (scannedData.length === 0) return;
-
-        // Aggregate counts for the CSV
         const summary = {};
         scannedData.forEach(item => {
             const key = `${item.module}_${item.code}`;
@@ -220,18 +200,15 @@
 
         let csv = "Operator,Bin,ShortCode,Qty\n";
         const opName = nameInput.value.trim();
-        
         for (const key in summary) {
             const [bin, code] = key.split('_');
             csv += `"${opName}","${bin}","${code}",${summary[key]}\n`;
         }
 
-        // Filename: name_bin#_mmddyy.csv
         const now = new Date();
         const mm = String(now.getMonth() + 1).padStart(2, '0');
         const dd = String(now.getDate()).padStart(2, '0');
         const yy = String(now.getFullYear()).slice(-2);
-        
         const fileName = `${opName}_${moduleInput.value.trim()}_${mm}${dd}${yy}.csv`;
 
         const blob = new Blob([csv], { type: 'text/csv' });
@@ -245,7 +222,6 @@
         if (scannedData.length > 0) {
             scannedData.pop();
             updateUi();
-            lastText.innerText = "Last scan removed";
         }
     });
 
